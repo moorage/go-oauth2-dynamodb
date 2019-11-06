@@ -1,4 +1,4 @@
-package dynamo
+package oauth2dynamodb
 
 import (
 	"encoding/json"
@@ -8,21 +8,23 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/contamobi/oauth2"
-	"github.com/contamobi/oauth2/models"
 	"gopkg.in/mgo.v2/bson"
+	oauth2 "gopkg.in/oauth2.v3"
+	"gopkg.in/oauth2.v3/models"
 )
 
+// NewTokenStore returns an gopkg.in/oauth2.v3/store compatible wrapper
 func NewTokenStore(config *Config) (store oauth2.TokenStore) {
 	session := config.SESSION
 	svc := dynamodb.New(session)
-	return &TokenStore{
+	return &DynamoDbTokenStore{
 		config:  config,
 		session: svc,
 	}
 }
 
-type TokenStore struct {
+// DynamoDbTokenStore is our implementation of oauth2.TokenStore
+type DynamoDbTokenStore struct {
 	config  *Config
 	session *dynamodb.DynamoDB
 }
@@ -40,7 +42,7 @@ type basicData struct {
 }
 
 // Create and store the new token information
-func (tokenStorage *TokenStore) Create(info oauth2.TokenInfo) (err error) {
+func (tokenStorage *DynamoDbTokenStore) Create(info oauth2.TokenInfo) (err error) {
 	if code := info.GetCode(); code != "" {
 		err = CreateWithAuthorizationCode(tokenStorage, info, "")
 		if err != nil {
@@ -56,7 +58,7 @@ func (tokenStorage *TokenStore) Create(info oauth2.TokenInfo) (err error) {
 	return
 }
 
-func CreateWithAuthorizationCode(tokenStorage *TokenStore, info oauth2.TokenInfo, id string) (err error) {
+func CreateWithAuthorizationCode(tokenStorage *DynamoDbTokenStore, info oauth2.TokenInfo, id string) (err error) {
 	code := info.GetCode()
 	if len(id) > 0 {
 		code = id
@@ -93,7 +95,7 @@ func CreateWithAuthorizationCode(tokenStorage *TokenStore, info oauth2.TokenInfo
 	return
 }
 
-func CreateWithAccessToken(tokenStorage *TokenStore, info oauth2.TokenInfo, id string) (err error) {
+func CreateWithAccessToken(tokenStorage *DynamoDbTokenStore, info oauth2.TokenInfo, id string) (err error) {
 	if len(id) == 0 {
 		id = bson.NewObjectId().Hex()
 	}
@@ -120,7 +122,7 @@ func CreateWithAccessToken(tokenStorage *TokenStore, info oauth2.TokenInfo, id s
 	return
 }
 
-func CreateWithRefreshToken(tokenStorage *TokenStore, info oauth2.TokenInfo) (err error) {
+func CreateWithRefreshToken(tokenStorage *DynamoDbTokenStore, info oauth2.TokenInfo) (err error) {
 	id := bson.NewObjectId().Hex()
 	err = CreateWithAccessToken(tokenStorage, info, id)
 	if err != nil {
@@ -146,7 +148,7 @@ func CreateWithRefreshToken(tokenStorage *TokenStore, info oauth2.TokenInfo) (er
 }
 
 // RemoveByCode use the authorization code to delete the token information
-func (tokenStorage *TokenStore) RemoveByCode(code string) (err error) {
+func (tokenStorage *DynamoDbTokenStore) RemoveByCode(code string) (err error) {
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
@@ -163,7 +165,7 @@ func (tokenStorage *TokenStore) RemoveByCode(code string) (err error) {
 }
 
 // RemoveByAccess use the access token to delete the token information
-func (tokenStorage *TokenStore) RemoveByAccess(access string) (err error) {
+func (tokenStorage *DynamoDbTokenStore) RemoveByAccess(access string) (err error) {
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
@@ -180,7 +182,7 @@ func (tokenStorage *TokenStore) RemoveByAccess(access string) (err error) {
 }
 
 // RemoveByRefresh use the refresh token to delete the token information
-func (tokenStorage *TokenStore) RemoveByRefresh(refresh string) (err error) {
+func (tokenStorage *DynamoDbTokenStore) RemoveByRefresh(refresh string) (err error) {
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
@@ -196,7 +198,7 @@ func (tokenStorage *TokenStore) RemoveByRefresh(refresh string) (err error) {
 	return
 }
 
-func (tokenStorage *TokenStore) getData(basicID string) (to oauth2.TokenInfo, err error) {
+func (tokenStorage *DynamoDbTokenStore) getData(basicID string) (to oauth2.TokenInfo, err error) {
 	if len(basicID) == 0 {
 		return
 	}
@@ -229,7 +231,7 @@ func (tokenStorage *TokenStore) getData(basicID string) (to oauth2.TokenInfo, er
 	return
 }
 
-func (tokenStorage *TokenStore) getBasicID(cname, token string) (basicID string, err error) {
+func (tokenStorage *DynamoDbTokenStore) getBasicID(cname, token string) (basicID string, err error) {
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
@@ -252,13 +254,13 @@ func (tokenStorage *TokenStore) getBasicID(cname, token string) (basicID string,
 }
 
 // GetByCode use the authorization code for token information data
-func (tokenStorage *TokenStore) GetByCode(code string) (to oauth2.TokenInfo, err error) {
+func (tokenStorage *DynamoDbTokenStore) GetByCode(code string) (to oauth2.TokenInfo, err error) {
 	to, err = tokenStorage.getData(code)
 	return
 }
 
 // GetByAccess use the access token for token information data
-func (tokenStorage *TokenStore) GetByAccess(access string) (to oauth2.TokenInfo, err error) {
+func (tokenStorage *DynamoDbTokenStore) GetByAccess(access string) (to oauth2.TokenInfo, err error) {
 	basicID, err := tokenStorage.getBasicID(tokenStorage.config.TABLE.AccessCName, access)
 	if err != nil && basicID == "" {
 		return
@@ -268,7 +270,7 @@ func (tokenStorage *TokenStore) GetByAccess(access string) (to oauth2.TokenInfo,
 }
 
 // GetByRefresh use the refresh token for token information data
-func (tokenStorage *TokenStore) GetByRefresh(refresh string) (to oauth2.TokenInfo, err error) {
+func (tokenStorage *DynamoDbTokenStore) GetByRefresh(refresh string) (to oauth2.TokenInfo, err error) {
 	basicID, err := tokenStorage.getBasicID(tokenStorage.config.TABLE.RefreshCName, refresh)
 	if err != nil && basicID == "" {
 		return

@@ -7,7 +7,7 @@
 ## Install
 
 ``` bash
-$ go get -u github.com/contamobi/go-oauth2-dynamodb
+$ go get -u github.com/morage/go-oauth2-dynamodb
 ```
 
 ## Usage (specifying credentials)
@@ -16,22 +16,24 @@ $ go get -u github.com/contamobi/go-oauth2-dynamodb
 package main
 
 import (
-	"github.com/contamobi/go-oauth2-dynamodb"
-	"github.com/contamobi/go-oauth2/manage"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/morage/go-oauth2-dynamodb"
 )
 
 func main() {
 	manager := manage.NewDefaultManager()
+	conf, err := oauth2dynamodb.NewConfig(
+		aws.NewConfig(), // however you want to config
+		"oauth2_basic", // Oauth2 basic table name
+		"oauth2_access", // Oauth2 access table name
+		"oauth2_refresh", // Oauth2 refresh table name
+	)
+	if err != nil {
+		...
+		return
+	}
 	manager.MustTokenStorage(
-		dynamo.NewTokenStore(dynamo.NewConfig(
-			"us-east-1", // AWS Region
-			"http://localhost:8000", // AWS DynamoDB Endpoint
-			"AKIA*********", // AWS Access Key
-			"*************", // AWS Secret
-                        "oauth2_basic", // Oauth2 basic table name
-			"oauth2_access", // Oauth2 access table name
-			"oauth2_refresh", // Oauth2 refresh table name
-		)),
+		oauth2dynamodb.NewTokenStore(conf),
 	)
 	// ...
 }
@@ -68,16 +70,16 @@ func main() {
 ## Run tests
 
 ### Start dynamodb local
-``` 
-java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb 
+```
+java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
 ```
 
 ### Export env variables
 ```
 export AWS_REGION=us-east-1
 export DYNAMODB_ENDPOINT='http://localhost:8000'
-export AWS_ACCESS_KEY=AKIA******
-export AWS_SECRET=**************
+export AWS_ACCESS_KEY_ID=AKIA******
+export AWS_SECRET_ACCESS_KEY=**************
 ```
 
 ### Run tests

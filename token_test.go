@@ -1,34 +1,32 @@
-package dynamo_test
+package oauth2dynamodb
 
 import (
-	"os"
 	"testing"
 	"time"
 
-	dynamo "github.com/contamobi/go-oauth2-dynamodb"
-	"github.com/contamobi/oauth2/models"
-
+	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/oauth2.v3/models"
 )
+
+const TestRegion = "local"
+const TestRedirectURI = "http://localhost/"
 
 func TestTokenStore(t *testing.T) {
 	Convey("Test dynamodb token store", t, func() {
-		mcfg, err := dynamo.NewConfig(
-			os.Getenv("AWS_REGION"),
-			os.Getenv("DYNAMODB_ENDPOINT"),
-			os.Getenv("AWS_ACCESS_KEY"),
-			os.Getenv("AWS_SECRET"),
+		mcfg, err := NewConfig(
+			aws.NewConfig().WithRegion(TestRegion),
 			"oauth2_basic",
 			"oauth2_access",
 			"oauth2_refresh",
 		)
-		store := dynamo.NewTokenStore(mcfg)
+		store := NewTokenStore(mcfg)
 		So(err, ShouldBeNil)
 		Convey("Test authorization code store", func() {
 			info := &models.Token{
 				ClientID:      "1",
 				UserID:        "1_1",
-				RedirectURI:   "http://localhost/",
+				RedirectURI:   TestRedirectURI,
 				Scope:         "all",
 				Code:          "11_11_11",
 				CodeCreateAt:  time.Now(),
@@ -53,7 +51,7 @@ func TestTokenStore(t *testing.T) {
 			info := &models.Token{
 				ClientID:        "1",
 				UserID:          "1_1",
-				RedirectURI:     "http://localhost/",
+				RedirectURI:     TestRedirectURI,
 				Scope:           "all",
 				Access:          "1_1_1",
 				AccessCreateAt:  time.Now(),
@@ -78,7 +76,7 @@ func TestTokenStore(t *testing.T) {
 			info := &models.Token{
 				ClientID:         "1",
 				UserID:           "1_2",
-				RedirectURI:      "http://localhost/",
+				RedirectURI:      TestRedirectURI,
 				Scope:            "all",
 				Access:           "1_2_1",
 				AccessCreateAt:   time.Now(),
