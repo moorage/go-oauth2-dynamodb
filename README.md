@@ -17,7 +17,7 @@ package main
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/morage/go-oauth2-dynamodb"
+	oauth2dynamodb "github.com/moorage/go-oauth2-dynamodb"
 )
 
 func main() {
@@ -45,23 +45,24 @@ func main() {
 package main
 
 import (
-	"github.com/contamobi/go-oauth2-dynamodb"
-	"github.com/contamobi/go-oauth2/manage"
+	"github.com/aws/aws-sdk-go/aws"
+  oauth2dynamodb "github.com/moorage/go-oauth2-dynamodb"
 )
 
 func main() {
 	manager := manage.NewDefaultManager()
+	conf, err := oauth2dynamodb.NewConfig(
+		aws.NewConfig(), // however you want to config
+		"oauth2_basic", // Oauth2 basic table name
+		"oauth2_access", // Oauth2 access table name
+		"oauth2_refresh", // Oauth2 refresh table name
+	)
+	if err != nil {
+		...
+		return
+	}
 	manager.MustTokenStorage(
-		dynamo.NewTokenStore(dynamo.NewConfig(
-			"us-east-1", // AWS Region
-			"", // Emtpy
-			"", // Emtpy
-			"", // Emtpy
-			"oauth2_basic", // Oauth2 basic table name
-                        "oauth2_access", // Oauth2 access table name
-                        "oauth2_refresh", // Oauth2 refresh table name
-
-		)),
+		dynamo.NewTokenStore(conf),
 	)
 	// ...
 }
